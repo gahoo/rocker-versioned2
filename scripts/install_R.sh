@@ -1,20 +1,26 @@
 #!/bin/bash
 set -e
 
+sed 's#ports.ubuntu.com#mirrors.aliyun.com#g' /etc/apt/sources.list -i
+echo 'Acquire::HTTP::Proxy "http://172.17.0.1:3142";' >> /etc/apt/apt.conf.d/01proxy
+echo 'Acquire::HTTPS::Proxy "false";' >> /etc/apt/apt.conf.d/01proxy
 apt-get update && apt-get -y install lsb-release
 
 UBUNTU_VERSION=${UBUNTU_VERSION:-`lsb_release -sc`}
 LANG=${LANG:-en_US.UTF-8}
 LC_ALL=${LC_ALL:-en_US.UTF-8}
-CRAN=${CRAN:-https://cran.r-project.org}
+CRAN=${CRAN:-/rocker_scripts/install_R.sh}
 
 ##  mechanism to force source installs if we're using RSPM
-CRAN_SOURCE=${CRAN/"__linux__/$UBUNTU_VERSION"/""}
+#CRAN_SOURCE=${CRAN/"__linux__/$UBUNTU_VERSION"/""}
+CRAN_SOURCE="https://mirrors.aliyun.com/CRAN/"
 
 export DEBIAN_FRONTEND=noninteractive
 
 # Set up and install R
 R_HOME=${R_HOME:-/usr/local/lib/R}
+
+
 
 READLINE_VERSION=8
 OPENBLAS=libopenblas-dev
@@ -45,6 +51,7 @@ apt-get update \
     libreadline${READLINE_VERSION} \
     libtiff* \
     liblzma* \
+    libxt6 \
     locales \
     make \
     unzip \
@@ -96,10 +103,10 @@ if [[ "$R_VERSION" == "devel" ]]; then                               \
 elif [[ "$R_VERSION" == "patched" ]]; then                           \
     wget https://stat.ethz.ch/R/daily/R-patched.tar.gz;              \
 else                                                                 \
-    wget https://cran.r-project.org/src/base/R-3/R-${R_VERSION}.tar.gz || \
-    wget https://cran.r-project.org/src/base/R-4/R-${R_VERSION}.tar.gz; \
+    wget https://mirrors.aliyun.com/CRAN/src/base/R-3/R-${R_VERSION}.tar.gz || \
+    wget http://172.17.0.1:9000/mirrors.aliyun.com/CRAN/src/base/R-4/R-${R_VERSION}.tar.gz; \
 fi &&                                                                \
-    tar xzf R-${R_VERSION}.tar.gz &&
+    tar xzf R-${R_VERSION}.tar.gz &&   
 
 cd R-${R_VERSION}
 R_PAPERSIZE=letter \
@@ -130,9 +137,10 @@ make clean
 echo "options(repos = c(CRAN = '${CRAN}'), download.file.method = 'libcurl')" >> ${R_HOME}/etc/Rprofile.site
 
 ## Set HTTPUserAgent for RSPM (https://github.com/rocker-org/rocker/issues/400)
-echo  'options(HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(),
-                 paste(getRversion(), R.version$platform,
+echo  'options(HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(), 
+                 paste(getRversion(), R.version$platform, 
                        R.version$arch, R.version$os)))' >> ${R_HOME}/etc/Rprofile.site
+
 
 ## Add a library directory (for user-installed packages)
 mkdir -p ${R_HOME}/site-library
@@ -159,3 +167,5 @@ apt-get remove --purge -y $BUILDDEPS
 apt-get autoremove -y
 apt-get autoclean -y
 rm -rf /var/lib/apt/lists/*
+
+

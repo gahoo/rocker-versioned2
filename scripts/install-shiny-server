@@ -1,0 +1,100 @@
+#!/bin/bash
+
+set -e
+export NCPU=`nproc`
+
+apt update
+apt-get install -y --no-install-recommends \
+    sudo \
+    gdebi-core \
+    libcurl4-openssl-dev \
+    libcairo2-dev \
+    libxt-dev \
+    libicu-dev \
+    libxml2-dev \
+    libssl-dev \
+    xtail \
+    wget
+    #libcurl4-gnutls-dev \
+
+# Prepare Prerequisites
+apt install -y cmake git pandoc pandoc-citeproc
+
+# Prepare Source
+wget http://172.17.0.1:9000/github.com/rstudio/shiny-server/archive/v1.5.16.958.tar.gz
+tar -xf v1.5.16.958.tar.gz
+cd shiny-server*
+sed 's/^NODE_SHA256.*$/NODE_SHA256=976285886f734ac4e13be8b34586136499b088aa32c6430ca8eee166d167dca5/g' external/node/install-node.sh -i
+sed 's#NODE_URL=.*$#NODE_URL="http://172.17.0.1:9000/nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-arm64.tar.xz"#g' external/node/install-node.sh -i
+
+# arm64 pandoc hack
+sed -e 's#1.19.2.1#1.19.2.4#g' -e 's#pandoc:.*#pandoc:4fa0ae4ec83fb619279d80b74e9277348ed5e41c"#g' -e 's#pandoc-citeproc:.*#pandoc-citeproc:ff9466666ff90e53c0906ec2f7d719e2701ccebb")#g' external/pandoc/CMakeLists.txt -i
+mkdir tmp
+cd tmp
+mkdir -p external/pandoc/
+cp /usr/bin/pandoc* external/pandoc/
+gzip -n external/pandoc/pandoc*
+
+# Install our private copy of Node.js
+../external/node/install-node.sh
+
+# Add the bin directory to the path so we can reference node
+DIR=`pwd`
+PATH=$DIR/../bin:$PATH
+
+# Use cmake to prepare the make step. Modify the "--DCMAKE_INSTALL_PREFIX"
+# if you wish the install the software at a different location.
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local ../
+# Get an error here? Check the "How do I set the cmake Python version?" question below
+
+# Recompile the npm modules included in the project
+export NODEJS_ORG_MIRROR="http://172.17.0.1:9000/nodejs.org/dist"
+make
+mkdir ../build
+(cd .. && ./bin/npm set registry https://registry.npm.taobao.org/ && ./bin/npm install)
+(cd .. && ./bin/node ./ext/node/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js rebuild)
+
+# Install the software at the predefined location
+make install
+
+# Install default config file
+mkdir -p /etc/shiny-server
+cp ../config/default.config /etc/shiny-server/shiny-server.conf
+
+
+## Post Install
+# Place a shortcut to the shiny-server executable in /usr/bin
+ln -s /usr/local/shiny-server/bin/shiny-server /usr/bin/shiny-server
+
+# Get R packages
+install2.r --error --skipinstalled -n ${NCPU} -r ${CRAN} shiny rmarkdown
+
+# Create shiny user. On some systems, you may need to specify the full path to 'useradd'
+useradd -r -m shiny
+
+# Create log, config, and application directories
+mkdir -p /var/log/shiny-server
+mkdir -p /var/lib/shiny-server
+chown shiny /var/log/shiny-server
+chown shiny /var/lib/shiny-server
+mkdir -p /etc/shiny-server
+mkdir -p /srv/shiny-server
+cp -R /usr/local/lib/R/site-library/shiny/examples/* /srv/shiny-server/
+
+
+## s6init
+. /rocker_scripts/install_s6init.sh
+mkdir -p /etc/services.d/shiny-server
+cat > /etc/services.d/shiny-server/run << 'EOF'
+#!/usr/bin/with-contenv bash
+## load /etc/environment vars first:
+for line in $( cat /etc/environment ) ; do export $line > /dev/null; done
+if [ "$APPLICATION_LOGS_TO_STDOUT" != "false" ]; then
+	    exec xtail /var/log/shiny-server/ &
+fi
+exec shiny-server 2>&1
+EOF
+chmod +x /etc/services.d/shiny-server/run
+
+# Clean up
+rm -r /shiny-server* /tmp/* /var/lib/apt/lists/*

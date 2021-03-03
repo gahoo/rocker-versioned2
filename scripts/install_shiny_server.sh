@@ -5,7 +5,7 @@ SHINY_SERVER_VERSION=${1:-${SHINY_SERVER_VERSION:-latest}}
 
 # Run dependency scripts
 . /rocker_scripts/install_s6init.sh
-. /rocker_scripts/install_pandoc.sh
+#. /rocker_scripts/install_pandoc.sh
 
 if [ "$SHINY_SERVER_VERSION" = "latest" ]; then
   SHINY_SERVER_VERSION=$(wget -qO- https://download3.rstudio.org/ubuntu-14.04/x86_64/VERSION)
@@ -19,13 +19,15 @@ apt-get install -y --no-install-recommends \
     libcurl4-gnutls-dev \
     libcairo2-dev \
     libxt-dev \
+    libxml2-dev \
+    libssl-dev \
+    libgit2-dev \
     xtail \
     wget
+    #libcurl4-openssl-dev
 
 # Install Shiny server
-wget --no-verbose "https://download3.rstudio.org/ubuntu-14.04/x86_64/shiny-server-${SHINY_SERVER_VERSION}-amd64.deb" -O ss-latest.deb
-gdebi -n ss-latest.deb
-rm ss-latest.deb
+#wget https://github.com/rstudio/shiny-server/archive/${SHINY_SERVER_VERSION}.tar.gz
 
 # Get R packages
 install2.r --error --skipinstalled shiny rmarkdown

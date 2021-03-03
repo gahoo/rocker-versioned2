@@ -4,6 +4,8 @@ set -e
 WORKON_HOME=${WORKON_HOME:-/opt/venv}
 PYTHON_VENV_PATH=${PYTHON_VENV_PATH:-${WORKON_HOME}/reticulate}
 RETICULATE_MINICONDA_ENABLED=${RETICULATE_MINICONDA_ENABLED:-FALSE}
+#export CRAN_SOURCE="https://mirrors.aliyun.com/CRAN/"
+#export CRAN="https://mirrors.aliyun.com/CRAN/"
 
 apt-get update && apt-get install -y --no-install-recommends \
         libpython3-dev \
@@ -13,7 +15,8 @@ apt-get update && apt-get install -y --no-install-recommends \
         python3-venv && \
     rm -rf /var/lib/apt/lists/*
 
-python3 -m pip --no-cache-dir install --upgrade \
+#python3 -m pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+python3 -m pip --no-cache-dir install --index-url https://mirrors.aliyun.com/pypi/simple/ --upgrade \
   pip \
   setuptools \
   virtualenv
@@ -26,7 +29,7 @@ fi
 mkdir -p ${WORKON_HOME}
 python3 -m venv ${PYTHON_VENV_PATH}
 
-install2.r --skipinstalled --error reticulate
+install2.r --skipinstalled --error -r $CRAN reticulate 
 
 ## Ensure RStudio inherits this env var
 echo "" >> ${R_HOME}/etc/Renviron
@@ -52,3 +55,4 @@ fi
 chown -R :staff ${WORKON_HOME}
 chmod g+wx ${WORKON_HOME}
 chown :staff ${PYTHON_VENV_PATH}
+

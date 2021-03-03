@@ -1,0 +1,53 @@
+#! /bin/bash
+
+set -e
+
+cd $SOURCE_DIR
+rm -fr rstudio*
+#curl -Ls \
+#  http://172.17.0.1:9000/github.com/rstudio/rstudio/tarball/v$RSTUDIO_VERSION_MAJOR.$RSTUDIO_VERSION_MINOR.$RSTUDIO_VERSION_PATCH \
+#  | tar xzf -
+wget http://172.17.0.1:9000/github.com/rstudio/rstudio/archive/v1.4.1103.tar.gz
+tar -xf v1.4.1103.tar.gz
+rm v1.4.1103.tar.gz
+mv rstudio* rstudio
+cd rstudio
+
+# Non-L4t Dependencies
+export PANDOC_VERSION=`pandoc --version|head -n 1|sed 's/^pandoc //'`
+echo "PANDOC_VERSION=$PANDOC_VERSION"
+
+pushd dependencies/common
+sed 's#https://s3#http://172.17.0.1:9000/s3#g' install-boost install-dictionaries install-mathjax install-soci -i
+echo "Installing RStudio boost from source - may take a while"
+/usr/bin/time ./install-boost #> $SOURCE_DIR/install-boost.log 2>&1
+echo "Installing dictionaries"
+./install-dictionaries #> /dev/null 2>&1
+echo "Installing MathJax" 
+./install-mathjax #> /dev/null 2>&1
+echo "Installing SOCI" 
+apt-get install -y libsqlite3-dev libpq-dev libiodbc2-dev libmysqlclient-dev
+sed 's#DWITH_ODBC=OFF#DWITH_ODBC=ON#g' install-soci -i
+sed 's#DWITH_MYSQL=OFF#DWITH_MYSQL=ON#g' install-soci -i
+./install-soci #> /dev/null 2>&1
+echo "Installing npm dependencies" 
+sed 's#https://#http://172.17.0.1:9000/#g' install-npm-dependencies ../../src/gwt/panmirror/src/editor/yarn.lock -i
+sed 's#x64#arm64#g' install-npm-dependencies -i
+./install-npm-dependencies #> /dev/null 2>&1
+echo "Copying Pandoc binaries"
+mkdir -p pandoc/$PANDOC_VERSION/
+cp /usr/bin/pandoc* pandoc/$PANDOC_VERSION/
+sed "s#2.11.2#$PANDOC_VERSION#g" ../../src/cpp/session/CMakeLists.txt -i
+popd
+
+echo "Testing R version"
+# R 4.0.0+ no longer uses the symbol 'R_Slave'. As a result, there will be an
+# error compiling RStudio for R more recent than 3.6.3. So if we have a newer
+# R we patch the source here.
+export R_VERSION_MAJOR=`R --version | head -n 1 | sed 's/^R version //' | sed 's/\..*$//'`
+echo "R_VERSION_MAJOR = $R_VERSION_MAJOR"
+if [ $R_VERSION_MAJOR -gt "3" ]
+then
+  echo "Patching RStudio source"
+  sed --in-place=.bak --expression='s/R_Slave/R_NoEcho/g' $SOURCE_DIR/rstudio/src/cpp/r/session/REmbeddedPosix.cpp
+fi
