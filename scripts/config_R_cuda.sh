@@ -13,13 +13,6 @@ PATH={$PATH:-$PATH:$CUDA_HOME/bin}
 LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-$LD_LIBRARY_PATH:$CUDA_HOME/lib64:$CUDA_HOME/extras/CUPTI/lib64}
 NVBLAS_CONFIG_FILE=${NVBLAS_CONFIG_FILE:-/etc/nvblas.conf}
 
-# Link the libcuda stub to the location where tensorflow is searching for it and reconfigure
-# dynamic linker run-time bindings
-#ln -s /usr/local/cuda-10.2 /usr/local/cuda
-ln -s $CUDA_HOME/lib64/stubs/libcuda.so $CUDA_HOME/lib64/stubs/libcuda.so.1
-echo "$CUDA_HOME/lib64/stubs" > /etc/ld.so.conf.d/z-cuda-stubs.conf
-ldconfig
-
 ## CUDA environmental variables configuration for RStudio
 
 ## cli R inherits these, but RStudio needs to have these set in as follows:
