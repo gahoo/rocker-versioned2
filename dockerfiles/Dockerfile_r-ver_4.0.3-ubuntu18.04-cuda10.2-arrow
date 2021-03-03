@@ -1,0 +1,22 @@
+FROM rocker/r-ver:4.0.3-ubuntu18.04-cuda10.2 as builder
+
+#COPY scripts/install_arrow_source_dependencies.sh /rocker_scripts/install_arrow_source_dependencies.sh
+#COPY scripts/install_arrow_source.sh /rocker_scripts/install_arrow_source.sh
+
+RUN /rocker_scripts/install_arrow_source_dependencies.sh
+RUN /rocker_scripts/install_arrow_source.sh
+
+
+FROM rocker/r-ver:4.0.3-ubuntu18.04-cuda10.2
+
+LABEL org.label-schema.license="GPL-2.0" \
+      org.label-schema.vcs-url="https://github.com/rocker-org/rocker-versioned" \
+      org.label-schema.vendor="Rocker Project" \
+      maintainer="Carl Boettiger <cboettig@ropensci.org>"
+
+ENV ARROW_HOME=/usr/local/arrow/
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ARROW_HOME/lib/
+
+COPY --from=builder /usr/local/arrow /usr/local/arrow
+COPY --from=builder /opt/venv/reticulate/lib/python3.6/site-packages /opt/venv/reticulate/lib/python3.6/site-packages
+COPY --from=builder /usr/local/lib/R/site-library /usr/local/lib/R/site-library

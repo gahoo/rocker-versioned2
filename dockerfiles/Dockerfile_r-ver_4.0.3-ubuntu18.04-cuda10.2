@@ -1,0 +1,58 @@
+FROM rocker/r-ver:4.0.3-ubuntu18.04
+
+LABEL org.label-schema.license="GPL-2.0" \
+      org.label-schema.vcs-url="https://github.com/rocker-org/rocker-versioned" \
+      org.label-schema.vendor="Rocker Project" \
+      maintainer="Carl Boettiger <cboettig@ropensci.org>"
+
+ENV CUDA_VERSION=10.2
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV NVIDIA_REQUIRE_CUDA=cuda>=10.2 brand=tesla,driver>=384,driver<385 brand=tesla,driver>=396,driver<397 brand=tesla,driver>=410,driver<411
+ENV CUDA_HOME=/usr/local/cuda-${CUDA_VERSION}
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/lib64:$CUDA_HOME/extras/CUPTI/lib64
+ENV LD_PRELOAD_BLAS=/usr/lib/aarch64-linux-gnu/libnvblas.so
+ENV NVBLAS_CONFIG_FILE=/etc/nvblas.conf
+ENV WORKON_HOME=/opt/venv
+ENV PYTHON_VENV_PATH=/opt/venv/reticulate
+ENV RETICULATE_AUTOCONFIGURE=0
+ENV PATH=${PYTHON_VENV_PATH}/bin:$PATH:${CUDA_HOME}/bin
+#ENV CRAN=https://mirrors.aliyun.com/CRAN/
+ARG SOC=t194
+
+#COPY scripts/config_cuda-repo.sh /rocker_scripts/config_cuda-repo.sh
+#COPY scripts/config_R_cuda.sh /rocker_scripts/config_R_cuda.sh
+#COPY scripts/install_python.sh /rocker_scripts/install_python.sh
+
+#RUN /rocker_scripts/install_cuda-10.2.sh
+RUN /rocker_scripts/config_cuda-repo.sh
+
+# Pick up some TF dependencies
+RUN apt-get update && \
+    apt-get install -y libcudnn8
+    # There appears to be a regression in libcublas10=10.2.2.89-1 which
+    # prevents cublas from initializing in TF. See
+    # https://github.com/tensorflow/tensorflow/issues/9489#issuecomment-562394257
+RUN apt-get install -y libcublas10 cuda-cusparse-10-2
+RUN apt-get install -y cuda-cufft-10-2 cuda-cudart-10-2
+RUN apt-get install -y cuda-cusolver-10-2
+RUN apt-get install -y cuda-command-line-tools-10-2 cuda-nvrtc-10-2 cuda-curand-10-2
+RUN apt-get install -y \
+        build-essential \
+        curl \
+        libfreetype6-dev \
+        libhdf5-serial-dev \
+        libzmq3-dev \
+        pkg-config \
+        software-properties-common \
+        unzip
+
+# Install TensorRT if not building for PowerPC
+RUN apt-get install -y libnvinfer7 libnvinfer-plugin7
+RUN /rocker_scripts/config_R_cuda.sh
+RUN /rocker_scripts/install_python.sh
+
+#ENV LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libnvblas.so
+
+#RUN apt install -y nvidia-cuda
+#RUN apt install -y nvidia-tensorrt

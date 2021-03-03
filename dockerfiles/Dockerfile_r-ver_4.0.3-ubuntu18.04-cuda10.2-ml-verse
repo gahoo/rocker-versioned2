@@ -1,0 +1,17 @@
+FROM rocker/ml:4.0.3-ubuntu18.04-cuda10.2
+
+LABEL org.label-schema.license="GPL-2.0" \
+      org.label-schema.vcs-url="https://github.com/rocker-org/rocker-versioned" \
+      org.label-schema.vendor="Rocker Project" \
+      maintainer="Carl Boettiger <cboettig@ropensci.org>"
+
+#COPY scripts/install_verse.sh /rocker_scripts/install_verse.sh
+#COPY scripts/install_texlive.sh /rocker_scripts/install_texlive.sh
+
+RUN /rocker_scripts/install_verse.sh
+#RUN /rocker_scripts/install_geospatial.sh
+
+
+
+
+

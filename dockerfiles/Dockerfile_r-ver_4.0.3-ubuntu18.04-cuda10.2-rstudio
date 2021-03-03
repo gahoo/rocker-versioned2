@@ -1,0 +1,37 @@
+FROM rocker/r-ver:4.0.3-ubuntu18.04-cuda10.2-arrow
+
+LABEL org.label-schema.license="GPL-2.0" \
+      org.label-schema.vcs-url="https://github.com/rocker-org/rocker-versioned" \
+      org.label-schema.vendor="Rocker Project" \
+      maintainer="Carl Boettiger <cboettig@ropensci.org>"
+
+ENV S6_VERSION=v1.21.7.0
+ENV RSTUDIO_VERSION=latest
+ENV PANDOC_VERSION=default
+ENV TENSORFLOW_VERSION=gpu
+ENV KERAS_VERSION=default
+ENV PATH=/usr/local/lib/rstudio-server/bin:$PATH
+
+ENV SOURCE_DIR=/usr/local/src
+
+#COPY scripts/install_s6init.sh /rocker_scripts/install_s6init.sh
+#COPY scripts/default_user.sh /rocker_scripts/default_user.sh
+#COPY scripts/userconf.sh /rocker_scripts/userconf.sh
+#COPY scripts/pam-helper.sh /rocker_scripts/pam-helper.sh
+
+#COPY scripts/install_rstudio_dependencies.sh /rocker_scripts/install_rstudio_dependencies.sh
+#COPY scripts/prep-rstudio-server /rocker_scripts/prep-rstudio-server
+#COPY scripts/install-rstudio-server /rocker_scripts/install-rstudio-server
+#COPY scripts/config_rstudio.sh /rocker_scripts/config_rstudio.sh
+
+#RUN /rocker_scripts/install-linux-dependencies
+RUN /rocker_scripts/install_rstudio_dependencies.sh && \
+    /rocker_scripts/install_s6init.sh && \
+    /rocker_scripts/prep-rstudio-server && \
+    /rocker_scripts/install-rstudio-server && \
+    /rocker_scripts/config_rstudio.sh && \
+    rm -r ${SOURCE_DIR}
+
+EXPOSE 8787
+
+CMD ["/init"]
